@@ -1,34 +1,36 @@
-import * as http from 'http';
 import * as WebSocket from 'ws';
+import { URLSearchParams } from 'url';
 
-const hostname = 'localhost';
 const port = 9999;
+const webSocketServer = new WebSocket.Server({ port: port });
 
-const server = http.createServer((req: http.IncomingMessage, res: http.ServerResponse) => {
-  res.statusCode = 200;
-  res.setHeader('Content-Type', 'text/plain');
-  res.end('Hello World\n');
-});
+const clients: { [browserId: string]: WebSocket } = {};
 
-const wss = new WebSocket.Server({ server });
+webSocketServer.on('connection', (ws: WebSocket, req) => {
+  let browserId: string | null = null;
 
-wss.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
+  if (req.url) {
+    const queryParams = new URLSearchParams(req.url.substring(1));
+    browserId = queryParams.get('screen');
 
-  ws.on('message', (message: string) => {
-    console.log(`Received message: ${message}`);
+    if (browserId) {
+      clients[browserId] = ws;
+    }
+  }
 
-    wss.clients.forEach((client) => {
-      if (client !== ws && client.readyState === WebSocket.OPEN) {
-        client.send(message);
-      }
-    });
+  ws.on('message', (message) => {
+    if (browserId) {
+      Object.keys(clients).forEach((id) => {
+        if (id !== browserId && clients[id].readyState === WebSocket.OPEN) {
+          clients[id].send(message);
+        }
+      });
+    }
   });
 
   ws.on('close', () => {
-    console.log('Client disconnected');
+    if (browserId) {
+      delete clients[browserId];
+    }
   });
-});
-
-server.listen(port, hostname, () => {
-  console.log(`Server running at http://${hostname}:${port}/`);
 });
