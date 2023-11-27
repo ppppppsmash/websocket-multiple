@@ -11,7 +11,7 @@ webSocketServer.on('connection', (ws: WebSocket, req) => {
 
   if (req.url) {
     const queryParams = new URLSearchParams(req.url.substring(1));
-    browserId = queryParams.get('screen');
+    browserId = queryParams.get('browser');
 
     if (browserId) {
       clients[browserId] = ws;
